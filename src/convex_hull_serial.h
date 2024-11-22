@@ -1,10 +1,12 @@
 #ifndef CONVEX_HULL_SERIAL
 #define CONVEX_HULL_SERIAL
 
+#include <cmath>
 #include <utility>
 #include <vector>
 
 #define CROSS(A, B, C) ((B.y() - C.y()) / (B.x() - C.x()) - (B.y() - A.y()) / (B.x() - A.x()))
+
 class Point
 {
 
@@ -19,6 +21,11 @@ public:
   double y() const
   {
     return _y;
+  }
+  bool operator==(const Point &other) const
+  {
+    const double EPSILON = 1e-9; // Tolerance for floating-point error
+    return std::fabs(_x - other._x) < EPSILON && std::fabs(_y - other._y) < EPSILON;
   }
 
 private:

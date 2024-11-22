@@ -1,12 +1,14 @@
 #include "convex_hull_serial.h"
 #include <cmath>
+#include <iostream>
 #include <utility>
 #include <vector>
 
 // Helper function to compute the cross product of vectors AB and AC
 double check_cross(const Point &a, const Point &b, const Point &c)
 {
-  return (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x());
+  // std::cout << CROSS(a, b, c) << std::endl;
+  return CROSS(a, b, c);
 }
 
 // Compute the upper tangent of two convex hulls ch_left and ch_right
@@ -43,7 +45,7 @@ std::pair<int, int> compute_upper_tangent(const std::vector<Point> &ch_left,
 
     // Adjust left index if necessary
     while (check_cross(ch_left[left_index], ch_right[right_index],
-                       ch_left[(left_index + l_length - 1) % l_length]) > 0)
+                       ch_left[(l_length - 1) % l_length]) <= 0)
     {
       left_index = (left_index + l_length - 1) % l_length;
       done = false;
@@ -51,7 +53,7 @@ std::pair<int, int> compute_upper_tangent(const std::vector<Point> &ch_left,
 
     // Adjust right index if necessary
     while (check_cross(ch_right[right_index], ch_left[left_index],
-                       ch_right[(right_index + 1) % r_length]) < 0)
+                       ch_right[(right_index + 1) % r_length]) >= 0)
     {
       right_index = (right_index + 1) % r_length;
       done = false;
@@ -94,7 +96,7 @@ std::pair<int, int> compute_lower_tangent(const std::vector<Point> &ch_left,
 
     // Adjust left index if necessary
     while (check_cross(ch_left[left_index], ch_right[right_index],
-                       ch_left[(left_index + 1) % l_length]) < 0)
+                       ch_left[(left_index + 1) % l_length]) >= 0)
     {
       left_index = (left_index + 1) % l_length;
       done = false;
@@ -102,9 +104,9 @@ std::pair<int, int> compute_lower_tangent(const std::vector<Point> &ch_left,
 
     // Adjust right index if necessary
     while (check_cross(ch_right[right_index], ch_left[left_index],
-                       ch_right[(right_index + r_length - 1) % r_length]) > 0)
+                       ch_right[(right_index + r_length - 1) % r_length]) <= 0)
     {
-      right_index = (right_index + r_length - 1) % r_length;
+      right_index = (right_index - 1) % r_length;
       done = false;
     }
   }
@@ -157,15 +159,15 @@ std::vector<Point> find_convex_hull(const std::vector<Point> &points)
     }
     else if (n == 3)
     {
-      if (check_cross(points[0], points[1], points[2]) > 0)
+      if (check_cross(points[1], points[0], points[2]) > 0)
       {
-        new_hull.push_back(points[1]);
         new_hull.push_back(points[2]);
+        new_hull.push_back(points[1]);
       }
       else
       {
-        new_hull.push_back(points[2]);
         new_hull.push_back(points[1]);
+        new_hull.push_back(points[2]);
       }
     }
     return new_hull;
@@ -175,6 +177,24 @@ std::vector<Point> find_convex_hull(const std::vector<Point> &points)
   std::vector<Point> ch_left = find_convex_hull({points.begin(), points.begin() + n / 2});
   std::vector<Point> ch_right = find_convex_hull({points.begin() + n / 2, points.end()});
 
+  std::cout << "LEFT HULL" << std::endl;
+  for (int i = 0; i < ch_left.size(); i++)
+  {
+    std::cout << "Point " << i << ":" << std::endl
+              << "X: " << ch_left[i].x() << std::endl
+              << "Y: " << ch_left[i].y() << std::endl;
+  }
+
+  std::cout << std::endl;
+  std::cout << "RIGHT HULL" << std::endl;
+
+  for (int i = 0; i < ch_right.size(); i++)
+  {
+    std::cout << "Point " << i << ":" << std::endl
+              << "X: " << ch_right[i].x() << std::endl
+              << "Y: " << ch_right[i].y() << std::endl;
+  }
+  std::cout << std::endl;
   // Merge the two convex hulls
   return merge_hulls(ch_left, ch_right);
 }

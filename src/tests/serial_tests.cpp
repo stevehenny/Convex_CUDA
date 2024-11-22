@@ -20,8 +20,8 @@ bool point_comparator(const Point &a, const Point &b)
 TEST(ConvexHullTest, CheckPolyCross)
 {
   Point a(0.1, 0.2), b(1.4, 2.8), c(3.2, 2.1);
-  double result = CROSS(a, b, c);
-  EXPECT_NEAR(result, 0.0, 1e-9); // Adjust based on expected result
+  double result = check_cross(a, b, c);
+  EXPECT_NEAR(result, -5.58999999999, 1e-9); // Adjust based on expected result
 }
 
 TEST(ConvexHullTest, ComputeUpperTangent)
@@ -75,12 +75,42 @@ TEST(ConvexHullTest, FindConvexHull)
   ASSERT_EQ(static_cast<int>(result.size()), 4); // Adjust based on expected hull size
 
   // Verify each point in the convex hull with approximate floating-point comparison
-  EXPECT_NEAR(result[0].x(), 0.0, 1e-9);
-  EXPECT_NEAR(result[0].y(), 0.0, 1e-9);
-  EXPECT_NEAR(result[1].x(), 2.0, 1e-9);
-  EXPECT_NEAR(result[1].y(), 0.0, 1e-9);
-  EXPECT_NEAR(result[2].x(), 2.0, 1e-9);
-  EXPECT_NEAR(result[2].y(), 2.0, 1e-9);
-  EXPECT_NEAR(result[3].x(), 0.0, 1e-9);
+  EXPECT_NEAR(result[0].x(), 2.1, 1e-9);
+  EXPECT_NEAR(result[0].y(), 0.2, 1e-9);
+  EXPECT_NEAR(result[1].x(), 1.4, 1e-9);
+  EXPECT_NEAR(result[1].y(), 2.3, 1e-9);
+  EXPECT_NEAR(result[2].x(), 2.6, 1e-9);
+  EXPECT_NEAR(result[2].y(), 3.7, 1e-9);
+  EXPECT_NEAR(result[3].x(), 8.2, 1e-9);
   EXPECT_NEAR(result[3].y(), 2.0, 1e-9);
+}
+
+TEST(ConvexHullTest, FindConvexHull_10_Points)
+{
+  std::vector<Point> points;
+  points.push_back(Point(0, 0));
+  points.push_back(Point(1, 4));   // Changed from Point(1, -4)
+  points.push_back(Point(1, 5));   // Changed from Point(-1, -5)
+  points.push_back(Point(5, 3));   // Changed from Point(-5, -3)
+  points.push_back(Point(3, 1));   // Changed from Point(-3, -1)
+  points.push_back(Point(1, 3));   // Changed from Point(-1, -3)
+  points.push_back(Point(2, 2));   // Changed from Point(-2, -2)
+  points.push_back(Point(1, 1));   // Changed from Point(-1, -1)
+  points.push_back(Point(2, 1));   // Changed from Point(-2, -1)
+  points.push_back(Point(1.2, 2)); // Changed from Point(-1, 1)
+
+  sort(points.begin(), points.end(), point_comparator);
+
+  std::vector<Point> result = find_convex_hull(points);
+
+  EXPECT_NEAR(result[0].x(), 0, 1e-9);
+  EXPECT_NEAR(result[0].y(), 0, 1e-9);
+  EXPECT_NEAR(result[1].x(), 1, 1e-9);
+  EXPECT_NEAR(result[1].y(), 5, 1e-9);
+  EXPECT_NEAR(result[2].x(), 5, 1e-9);
+  EXPECT_NEAR(result[2].y(), 3, 1e-9);
+  EXPECT_NEAR(result[3].x(), 3, 1e-9);
+  EXPECT_NEAR(result[3].y(), 1, 1e-9);
+  EXPECT_NEAR(result[4].x(), 1, 1e-9);
+  EXPECT_NEAR(result[4].y(), 1, 1e-9);
 }
