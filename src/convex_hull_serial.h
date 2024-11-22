@@ -2,41 +2,39 @@
 #define CONVEX_HULL_SERIAL
 
 #include <cmath>
+#include <iostream>
 #include <utility>
 #include <vector>
 
-#define CROSS(A, B, C) ((B.y() - C.y()) / (B.x() - C.x()) - (B.y() - A.y()) / (B.x() - A.x()))
-
-class Point
+// Custom Point class
+struct Point
 {
+  float x, y;
+  Point(float x = 0, float y = 0) : x(x), y(y)
+  {
+  }
 
-public:
-  Point(double x, double y) : _x(x), _y(y)
-  {
-  }
-  double x() const
-  {
-    return _x;
-  }
-  double y() const
-  {
-    return _y;
-  }
+  // Overload the equality operator
   bool operator==(const Point &other) const
   {
-    const double EPSILON = 1e-9; // Tolerance for floating-point error
-    return std::fabs(_x - other._x) < EPSILON && std::fabs(_y - other._y) < EPSILON;
+    return x == other.x && y == other.y;
   }
 
-private:
-  double _x, _y;
-};
-double check_cross(const Point &a, const Point &b, const Point &c);
-std::pair<int, int> compute_upper_tangent(const std::vector<Point> &ch_left,
-                                          const std::vector<Point> &ch_right);
-std::pair<int, int> compute_lower_tangent(const std::vector<Point> &ch_left,
-                                          const std::vector<Point> &ch_right);
-std::vector<Point> merge_hulls(const std::vector<Point> &ch_left,
-                               const std::vector<Point> &ch_right);
-std::vector<Point> find_convex_hull(const std::vector<Point> &points);
+  bool operator<(const Point &other) const
+  {
+    return (x < other.x) || (x == other.x && y < other.y);
+  }
+}; // Global variable for the center of the polygon
+
+// Determines the quadrant of a point (used in compare())
+int quad(const Point &p);
+// Checks the orientation of three points
+int orientation(const Point &a, const Point &b, const Point &c);
+// Compare function for sorting
+bool compare(const Point &p1, const Point &q1);
+// Finds upper tangent of two polygons 'a' and 'b' represented as two vectors.
+std::vector<Point> merger(const std::vector<Point> &a, const std::vector<Point> &b);
+// Returns the convex hull for the given set of points
+std::vector<Point> divide(std::vector<Point> a);
+
 #endif // CONVEX_HULL_SERIAL

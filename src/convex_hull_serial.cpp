@@ -1,200 +1,175 @@
 #include "convex_hull_serial.h"
-#include <cmath>
-#include <iostream>
-#include <utility>
-#include <vector>
+#include <bits/stdc++.h>
+using namespace std;
+Point mid;
 
-// Helper function to compute the cross product of vectors AB and AC
-double check_cross(const Point &a, const Point &b, const Point &c)
+// Determines the quadrant of a point (used in compare())
+int quad(const Point &p)
 {
-  // std::cout << CROSS(a, b, c) << std::endl;
-  return CROSS(a, b, c);
+  if (p.x >= 0 && p.y >= 0)
+    return 1;
+  if (p.x <= 0 && p.y >= 0)
+    return 2;
+  if (p.x <= 0 && p.y <= 0)
+    return 3;
+  return 4;
 }
 
-// Compute the upper tangent of two convex hulls ch_left and ch_right
-std::pair<int, int> compute_upper_tangent(const std::vector<Point> &ch_left,
-                                          const std::vector<Point> &ch_right)
+// Checks the orientation of three points
+int orientation(const Point &a, const Point &b, const Point &c)
 {
-  int l_length = ch_left.size();
-  int r_length = ch_right.size();
+  float res = (b.y - a.y) * (c.x - b.x) - (c.y - b.y) * (b.x - a.x);
 
-  // Find the rightmost point of the left hull
-  int left_index = 0;
-  for (int i = 0; i < l_length; i++)
-  {
-    if (ch_left[i].x() > ch_left[left_index].x())
-    {
-      left_index = i;
-    }
-  }
+  if (res == 0)
+    return 0;
+  if (res > 0)
+    return 1;
+  return -1;
+}
 
-  // Find the leftmost point of the right hull
-  int right_index = 0;
-  for (int i = 0; i < r_length; i++)
-  {
-    if (ch_right[i].x() < ch_right[right_index].x())
-    {
-      right_index = i;
-    }
-  }
+// Compare function for sorting
+bool compare(const Point &p1, const Point &q1)
+{
+  Point p = {p1.x - mid.x, p1.y - mid.y};
+  Point q = {q1.x - mid.x, q1.y - mid.y};
 
+  int one = quad(p);
+  int two = quad(q);
+
+  if (one != two)
+    return (one < two);
+  return (p.y * q.x < q.y * p.x);
+}
+
+// Finds upper tangent of two polygons 'a' and 'b' represented as two vectors.
+vector<Point> merger(const vector<Point> &a, const vector<Point> &b)
+{
+  int n1 = a.size(), n2 = b.size();
+
+  int ia = 0, ib = 0;
+  for (int i = 1; i < n1; i++)
+    if (a[i].x > a[ia].x)
+      ia = i;
+
+  for (int i = 1; i < n2; i++)
+    if (b[i].x < b[ib].x)
+      ib = i;
+
+  int inda = ia, indb = ib;
   bool done = false;
   while (!done)
   {
     done = true;
+    while (orientation(b[indb], a[inda], a[(inda + 1) % n1]) >= 0)
+      inda = (inda + 1) % n1;
 
-    // Adjust left index if necessary
-    while (check_cross(ch_left[left_index], ch_right[right_index],
-                       ch_left[(l_length - 1) % l_length]) <= 0)
+    while (orientation(a[inda], b[indb], b[(n2 + indb - 1) % n2]) <= 0)
     {
-      left_index = (left_index + l_length - 1) % l_length;
-      done = false;
-    }
-
-    // Adjust right index if necessary
-    while (check_cross(ch_right[right_index], ch_left[left_index],
-                       ch_right[(right_index + 1) % r_length]) >= 0)
-    {
-      right_index = (right_index + 1) % r_length;
+      indb = (n2 + indb - 1) % n2;
       done = false;
     }
   }
-  return std::make_pair(left_index, right_index);
-}
 
-// Compute the lower tangent of two convex hulls ch_left and ch_right
-std::pair<int, int> compute_lower_tangent(const std::vector<Point> &ch_left,
-                                          const std::vector<Point> &ch_right)
-{
-  int l_length = ch_left.size();
-  int r_length = ch_right.size();
-
-  // Find the rightmost point of the left hull
-  int left_index = 0;
-  for (int i = 0; i < l_length; i++)
-  {
-    if (ch_left[i].x() > ch_left[left_index].x())
-    {
-      left_index = i;
-    }
-  }
-
-  // Find the leftmost point of the right hull
-  int right_index = 0;
-  for (int i = 0; i < r_length; i++)
-  {
-    if (ch_right[i].x() < ch_right[right_index].x())
-    {
-      right_index = i;
-    }
-  }
-
-  bool done = false;
+  int uppera = inda, upperb = indb;
+  inda = ia, indb = ib;
+  done = false;
   while (!done)
   {
     done = true;
+    while (orientation(a[inda], b[indb], b[(indb + 1) % n2]) >= 0)
+      indb = (indb + 1) % n2;
 
-    // Adjust left index if necessary
-    while (check_cross(ch_left[left_index], ch_right[right_index],
-                       ch_left[(left_index + 1) % l_length]) >= 0)
+    while (orientation(b[indb], a[inda], a[(n1 + inda - 1) % n1]) <= 0)
     {
-      left_index = (left_index + 1) % l_length;
-      done = false;
-    }
-
-    // Adjust right index if necessary
-    while (check_cross(ch_right[right_index], ch_left[left_index],
-                       ch_right[(right_index + r_length - 1) % r_length]) <= 0)
-    {
-      right_index = (right_index - 1) % r_length;
+      inda = (n1 + inda - 1) % n1;
       done = false;
     }
   }
-  return std::make_pair(left_index, right_index);
-}
-// Merges two convex hulls using their upper and lower tangents
-std::vector<Point> merge_hulls(const std::vector<Point> &ch_left,
-                               const std::vector<Point> &ch_right)
-{
-  std::vector<Point> result;
-  auto u_tan = compute_upper_tangent(ch_left, ch_right);
-  auto l_tan = compute_lower_tangent(ch_left, ch_right);
 
-  int l_length = ch_left.size(), r_length = ch_right.size();
+  int lowera = inda, lowerb = indb;
+  vector<Point> ret;
 
-  // Add points from left hull between lower and upper tangents
-  int ind = l_tan.first;
-  result.push_back(ch_left[ind]);
-  while (ind != u_tan.first)
+  int ind = uppera;
+  ret.push_back(a[uppera]);
+  while (ind != lowera)
   {
-    ind = (ind + 1) % l_length;
-    result.push_back(ch_left[ind]);
+    ind = (ind + 1) % n1;
+    ret.push_back(a[ind]);
   }
 
-  // Add points from right hull between upper and lower tangents
-  ind = u_tan.second;
-  result.push_back(ch_right[ind]);
-  while (ind != l_tan.second)
+  ind = lowerb;
+  ret.push_back(b[lowerb]);
+  while (ind != upperb)
   {
-    ind = (ind + 1) % r_length;
-    result.push_back(ch_right[ind]);
+    ind = (ind + 1) % n2;
+    ret.push_back(b[ind]);
   }
-  return result;
+  return ret;
 }
 
-// Recursive function to find the convex hull of a sorted set of points
-std::vector<Point> find_convex_hull(const std::vector<Point> &points)
+// Brute force algorithm to find convex hull for a small set of points
+vector<Point> bruteHull(vector<Point> a)
 {
-  int n = points.size();
+  set<Point> s;
 
-  // Base case: when there are 3 or fewer points
-  if (n <= 3)
+  for (int i = 0; i < a.size(); i++)
   {
-    std::vector<Point> new_hull;
-    new_hull.push_back(points[0]);
-
-    if (n == 2)
+    for (int j = i + 1; j < a.size(); j++)
     {
-      new_hull.push_back(points[1]);
-    }
-    else if (n == 3)
-    {
-      if (check_cross(points[1], points[0], points[2]) > 0)
+      float x1 = a[i].x, x2 = a[j].x;
+      float y1 = a[i].y, y2 = a[j].y;
+
+      float a1 = y1 - y2;
+      float b1 = x2 - x1;
+      float c1 = x1 * y2 - y1 * x2;
+
+      int pos = 0, neg = 0;
+      for (int k = 0; k < a.size(); k++)
       {
-        new_hull.push_back(points[2]);
-        new_hull.push_back(points[1]);
+        if (a1 * a[k].x + b1 * a[k].y + c1 <= 0)
+          neg++;
+        if (a1 * a[k].x + b1 * a[k].y + c1 >= 0)
+          pos++;
       }
-      else
+      if (pos == a.size() || neg == a.size())
       {
-        new_hull.push_back(points[1]);
-        new_hull.push_back(points[2]);
+        s.insert(a[i]);
+        s.insert(a[j]);
       }
     }
-    return new_hull;
   }
 
-  // Recursively find the convex hull of the left and right halves
-  std::vector<Point> ch_left = find_convex_hull({points.begin(), points.begin() + n / 2});
-  std::vector<Point> ch_right = find_convex_hull({points.begin() + n / 2, points.end()});
-
-  std::cout << "LEFT HULL" << std::endl;
-  for (int i = 0; i < ch_left.size(); i++)
+  vector<Point> ret(s.begin(), s.end());
+  mid = {0, 0};
+  int n = ret.size();
+  for (int i = 0; i < n; i++)
   {
-    std::cout << "Point " << i << ":" << std::endl
-              << "X: " << ch_left[i].x() << std::endl
-              << "Y: " << ch_left[i].y() << std::endl;
+    mid.x += ret[i].x;
+    mid.y += ret[i].y;
+    ret[i].x *= n;
+    ret[i].y *= n;
   }
-
-  std::cout << std::endl;
-  std::cout << "RIGHT HULL" << std::endl;
-
-  for (int i = 0; i < ch_right.size(); i++)
+  sort(ret.begin(), ret.end(), compare);
+  for (int i = 0; i < n; i++)
   {
-    std::cout << "Point " << i << ":" << std::endl
-              << "X: " << ch_right[i].x() << std::endl
-              << "Y: " << ch_right[i].y() << std::endl;
+    ret[i].x /= n;
+    ret[i].y /= n;
   }
-  std::cout << std::endl;
-  // Merge the two convex hulls
-  return merge_hulls(ch_left, ch_right);
+  return ret;
+}
+
+// Returns the convex hull for the given set of points
+vector<Point> divide(vector<Point> a)
+{
+  cout << a.size() << endl;
+  if (a.size() <= 5)
+    return bruteHull(a);
+
+  vector<Point> left(a.begin(), a.begin() + a.size() / 2);
+  vector<Point> right(a.begin() + a.size() / 2, a.end());
+
+  vector<Point> left_hull = divide(left);
+  vector<Point> right_hull = divide(right);
+
+  return merger(left_hull, right_hull);
 }

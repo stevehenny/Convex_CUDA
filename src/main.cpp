@@ -1,9 +1,10 @@
 #include "convex_hull_serial.h"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Interval_nt.h>
 #include <CGAL/convex_hull_2.h>
-#include <algorithm>
 #include <cstdlib>
 #include <ctime>
+#include <fenv.h>
 #include <iomanip> // For precise output formatting
 #include <iostream>
 #include <vector>
@@ -15,7 +16,7 @@ typedef K::Point_2 Point_2;
 // Function to convert your custom Point to CGAL Point_2
 Point_2 to_cgal_point(const Point &p)
 {
-  return Point_2(p.x(), p.y());
+  return Point_2(p.x, p.y);
 }
 
 // Function to convert CGAL Point_2 to your custom Point
@@ -26,8 +27,14 @@ Point to_custom_point(const Point_2 &p)
 
 int main()
 {
-  // while (1)
-  //   std::cout << CROSS(Point(1.2, 3.2), Point(1.31, 8.0), Point(7.21, 5.2)) << std::endl;
+  if (!fesetround(FE_TONEAREST))
+  {
+    std::cerr << "Rounding mode set to nearest successfully.\n";
+  }
+  else
+  {
+    std::cerr << "Failed to set rounding mode.\n";
+  }
   std::srand(std::time(0));
 
   // Generate random points
@@ -47,7 +54,7 @@ int main()
   }
 
   std::sort(points.begin(), points.end(), [](const Point &a, const Point &b) {
-    return (a.x() < b.x()) || (a.x() == b.x() && a.y() < b.y());
+    return (a.x < b.x) || (a.x == b.x && a.y < b.y);
   });
   // Compute convex hull using CGAL
   std::vector<Point_2> cgal_hull;
@@ -59,19 +66,19 @@ int main()
   std::cout << "LEFT HULL" << std::endl;
   for (int i = 0; i < ch_left.size(); i++)
   {
-    std::cout << std::fixed << std::setprecision(6) << "(" << ch_left[i].x() << ", "
-              << ch_left[i].y() << ")\n";
+    std::cout << std::fixed << std::setprecision(6) << "(" << ch_left[i].x << ", " << ch_left[i].y
+              << ")\n";
   }
 
   std::cout << "RIGHT HULL" << std::endl;
   for (int i = 0; i < ch_right.size(); i++)
   {
 
-    std::cout << std::fixed << std::setprecision(6) << "(" << ch_right[i].x() << ", "
-              << ch_right[i].y() << ")\n";
+    std::cout << std::fixed << std::setprecision(6) << "(" << ch_right[i].x << ", " << ch_right[i].y
+              << ")\n";
   }
   // Compute convex hull using your implementation
-  std::vector<Point> my_hull = find_convex_hull(points);
+  std::vector<Point> my_hull = divide(points);
 
   // Convert CGAL hull back to custom Point type for comparison
   std::vector<Point> converted_cgal_hull;
@@ -84,11 +91,11 @@ int main()
   // Sort the hulls for comparison
   std::sort(converted_cgal_hull.begin(), converted_cgal_hull.end(),
             [](const Point &a, const Point &b) {
-              return (a.x() < b.x()) || (a.x() == b.x() && a.y() < b.y());
+              return (a.x < b.x) || (a.x == b.x && a.y < b.y);
             }); // Added the missing parenthesis here
 
   std::sort(my_hull.begin(), my_hull.end(), [](const Point &a, const Point &b) {
-    return (a.x() < b.x()) || (a.x() == b.x() && a.y() < b.y());
+    return (a.x < b.x) || (a.x == b.x && a.y < b.y);
   });
 
   // Compare the two hulls
@@ -102,33 +109,14 @@ int main()
     std::cout << "CGAL Hull:\n";
     for (const auto &p : converted_cgal_hull)
     {
-      std::cout << std::fixed << std::setprecision(6) << "(" << p.x() << ", " << p.y() << ")\n";
+      std::cout << std::fixed << std::setprecision(6) << "(" << p.x << ", " << p.y << ")\n";
     }
     std::cout << "Your Hull:\n";
     for (const auto &p : my_hull)
     {
-      std::cout << std::fixed << std::setprecision(6) << "(" << p.x() << ", " << p.y() << ")\n";
+      std::cout << std::fixed << std::setprecision(6) << "(" << p.x << ", " << p.y << ")\n";
     }
   }
 
   return 0;
-
-  // std::vector<Point> points = create_test_points();
-  // sort(points.begin(), points.end(), point_comparator);
-  // std::cout << "VERIFY SORTED" << std::endl;
-  // for (int i = 0; i < points.size(); i++)
-  // {
-  //   std::cout << "Point " << i << ":" << std::endl
-  //             << "X: " << points[i].x() << std::endl
-  //             << "Y: " << points[i].y() << std::endl;
-  // }
-  // std::vector<Point> result = find_convex_hull(points);
-  //
-  // for (int i = 0; i < result.size(); i++)
-  // {
-  //   std::cout << "Point " << i << ":" << std::endl
-  //             << "X: " << result[i].x() << std::endl
-  //             << "Y: " << result[i].y() << std::endl;
-  // }
-  // return 0;
 }
