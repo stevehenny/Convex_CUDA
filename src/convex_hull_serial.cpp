@@ -1,6 +1,12 @@
 #include "convex_hull_serial.h"
-#include <bits/stdc++.h>
+#include <algorithm>
+#include <cmath>
+#include <iostream>
+#include <set>
+#include <vector>
+
 using namespace std;
+
 Point mid;
 
 // Determines the quadrant of a point (used in compare())
@@ -15,23 +21,21 @@ int quad(const Point &p)
   return 4;
 }
 
-// Checks the orientation of three points
+// Checks the orientation of three points:
+// 0 -> collinear, 1 -> clockwise, -1 -> counterclockwise
 int orientation(const Point &a, const Point &b, const Point &c)
 {
-  float res = (b.y - a.y) * (c.x - b.x) - (c.y - b.y) * (b.x - a.x);
-
-  if (res == 0)
+  double val = (b.y - a.y) * (c.x - b.x) - (c.y - b.y) * (b.x - a.x);
+  if (fabs(val) < 1e-9) // Account for floating-point precision
     return 0;
-  if (res > 0)
-    return 1;
-  return -1;
+  return (val > 0) ? 1 : -1;
 }
 
-// Compare function for sorting
-bool compare(const Point &p1, const Point &q1)
+// Compare function for sorting points based on polar angle with respect to the middle point
+bool compare(const Point &p1, const Point &p2)
 {
   Point p = {p1.x - mid.x, p1.y - mid.y};
-  Point q = {q1.x - mid.x, q1.y - mid.y};
+  Point q = {p2.x - mid.x, p2.y - mid.y};
 
   int one = quad(p);
   int two = quad(q);
@@ -41,135 +45,135 @@ bool compare(const Point &p1, const Point &q1)
   return (p.y * q.x < q.y * p.x);
 }
 
-// Finds upper tangent of two polygons 'a' and 'b' represented as two vectors.
-vector<Point> merger(const vector<Point> &a, const vector<Point> &b)
+// Merge function to combine the convex hulls of two polygons
+vector<Point> mergeHulls(const vector<Point> &left_hull, const vector<Point> &right_hull)
 {
-  int n1 = a.size(), n2 = b.size();
+  int left_length = left_hull.size(), right_length = right_hull.size();
 
-  int ia = 0, ib = 0;
-  for (int i = 1; i < n1; i++)
-    if (a[i].x > a[ia].x)
-      ia = i;
+  int left_ind = 0, right_ind = 0;
+  for (int i = 1; i < left_length; i++)
+    if (left_hull[i].x > left_hull[left_ind].x)
+      left_ind = i;
 
-  for (int i = 1; i < n2; i++)
-    if (b[i].x < b[ib].x)
-      ib = i;
+  for (int i = 1; i < right_length; i++)
+    if (right_hull[i].x < right_hull[right_ind].x)
+      right_ind = i;
 
-  int inda = ia, indb = ib;
+  int upper_left = left_ind, upper_right = right_ind, lower_left = left_ind,
+      lower_right = right_ind;
+
   bool done = false;
   while (!done)
   {
     done = true;
-    while (orientation(b[indb], a[inda], a[(inda + 1) % n1]) >= 0)
-      inda = (inda + 1) % n1;
+    while (orientation(right_hull[upper_right], left_hull[upper_left],
+                       left_hull[(upper_left + 1) % left_length]) > 0)
+      upper_left = (upper_left + 1) % left_length;
 
-    while (orientation(a[inda], b[indb], b[(n2 + indb - 1) % n2]) <= 0)
+    while (orientation(left_hull[upper_left], right_hull[upper_right],
+                       right_hull[(right_length + upper_right - 1) % right_length]) < 0)
     {
-      indb = (n2 + indb - 1) % n2;
+      upper_right = (right_length + upper_right - 1) % right_length;
       done = false;
     }
   }
 
-  int uppera = inda, upperb = indb;
-  inda = ia, indb = ib;
   done = false;
   while (!done)
   {
     done = true;
-    while (orientation(a[inda], b[indb], b[(indb + 1) % n2]) >= 0)
-      indb = (indb + 1) % n2;
+    while (orientation(left_hull[lower_left], right_hull[lower_right],
+                       right_hull[(lower_right + 1) % right_length]) > 0)
+      lower_right = (lower_right + 1) % right_length;
 
-    while (orientation(b[indb], a[inda], a[(n1 + inda - 1) % n1]) <= 0)
+    while (orientation(right_hull[lower_right], left_hull[lower_left],
+                       left_hull[(left_length + lower_left - 1) % left_length]) < 0)
     {
-      inda = (n1 + inda - 1) % n1;
+      lower_left = (left_length + lower_left - 1) % left_length;
       done = false;
     }
   }
 
-  int lowera = inda, lowerb = indb;
-  vector<Point> ret;
+  vector<Point> result;
 
-  int ind = uppera;
-  ret.push_back(a[uppera]);
-  while (ind != lowera)
+  int ind = upper_left;
+  result.push_back(left_hull[upper_left]);
+  while (ind != lower_left)
   {
-    ind = (ind + 1) % n1;
-    ret.push_back(a[ind]);
+    ind = (ind + 1) % left_length;
+    result.push_back(left_hull[ind]);
   }
 
-  ind = lowerb;
-  ret.push_back(b[lowerb]);
-  while (ind != upperb)
+  ind = lower_right;
+  result.push_back(right_hull[lower_right]);
+  while (ind != upper_right)
   {
-    ind = (ind + 1) % n2;
-    ret.push_back(b[ind]);
+    ind = (ind + 1) % right_length;
+    result.push_back(right_hull[ind]);
   }
-  return ret;
+
+  return result;
 }
 
-// Brute force algorithm to find convex hull for a small set of points
-vector<Point> bruteHull(vector<Point> a)
+// Brute force algorithm to find the convex hull for a small set of points
+vector<Point> bruteHull(vector<Point> points)
 {
-  set<Point> s;
+  set<Point> hull;
 
-  for (int i = 0; i < a.size(); i++)
+  for (int i = 0; i < points.size(); i++)
   {
-    for (int j = i + 1; j < a.size(); j++)
+    for (int j = i + 1; j < points.size(); j++)
     {
-      float x1 = a[i].x, x2 = a[j].x;
-      float y1 = a[i].y, y2 = a[j].y;
+      double x1 = points[i].x, x2 = points[j].x;
+      double y1 = points[i].y, y2 = points[j].y;
 
-      float a1 = y1 - y2;
-      float b1 = x2 - x1;
-      float c1 = x1 * y2 - y1 * x2;
+      double a1 = y1 - y2;
+      double b1 = x2 - x1;
+      double c1 = x1 * y2 - y1 * x2;
 
       int pos = 0, neg = 0;
-      for (int k = 0; k < a.size(); k++)
+      for (int k = 0; k < points.size(); k++)
       {
-        if (a1 * a[k].x + b1 * a[k].y + c1 <= 0)
-          neg++;
-        if (a1 * a[k].x + b1 * a[k].y + c1 >= 0)
+        double val = a1 * points[k].x + b1 * points[k].y + c1;
+        if (val > 1e-9)
           pos++;
+        else if (val < -1e-9)
+          neg++;
       }
-      if (pos == a.size() || neg == a.size())
+      if (pos == 0 || neg == 0)
       {
-        s.insert(a[i]);
-        s.insert(a[j]);
+        hull.insert(points[i]);
+        hull.insert(points[j]);
       }
     }
   }
 
-  vector<Point> ret(s.begin(), s.end());
+  vector<Point> result(hull.begin(), hull.end());
+
   mid = {0, 0};
-  int n = ret.size();
-  for (int i = 0; i < n; i++)
+  for (const auto &p : result)
   {
-    mid.x += ret[i].x;
-    mid.y += ret[i].y;
-    ret[i].x *= n;
-    ret[i].y *= n;
+    mid.x += p.x;
+    mid.y += p.y;
   }
-  sort(ret.begin(), ret.end(), compare);
-  for (int i = 0; i < n; i++)
-  {
-    ret[i].x /= n;
-    ret[i].y /= n;
-  }
-  return ret;
+  mid.x /= result.size();
+  mid.y /= result.size();
+
+  sort(result.begin(), result.end(), compare);
+  return result;
 }
 
-// Returns the convex hull for the given set of points
-vector<Point> divide(vector<Point> a)
+// Divide-and-conquer method for convex hull computation
+vector<Point> divide(vector<Point> points)
 {
-  cout << a.size() << endl;
-  if (a.size() <= 5)
-    return bruteHull(a);
+  if (points.size() <= 5)
+    return bruteHull(points);
 
-  vector<Point> left(a.begin(), a.begin() + a.size() / 2);
-  vector<Point> right(a.begin() + a.size() / 2, a.end());
+  vector<Point> left(points.begin(), points.begin() + points.size() / 2);
+  vector<Point> right(points.begin() + points.size() / 2, points.end());
 
-  vector<Point> left_hull = divide(left);
-  vector<Point> right_hull = divide(right);
+  vector<Point> leftHull = divide(left);
+  vector<Point> rightHull = divide(right);
 
-  return merger(left_hull, right_hull);
+  return mergeHulls(leftHull, rightHull);
 }

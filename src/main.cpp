@@ -39,12 +39,12 @@ int main()
 
   // Generate random points
   std::vector<Point> points;
-  for (int i = 0; i < 10; ++i)
+  for (int i = 0; i < 100000; ++i)
   {
     double x = static_cast<double>(std::rand()) / RAND_MAX * 100.0; // Random x in [0.0, 100.0)
     double y = static_cast<double>(std::rand()) / RAND_MAX * 100.0; // Random y in [0.0, 100.0)
     points.push_back(Point(x, y));
-    std::cout << std::fixed << std::setprecision(6) << "(" << x << ", " << y << ")\n";
+    // std::cout << std::fixed << std::setprecision(6) << "(" << x << ", " << y << ")\n";
   }
   // Convert custom points to CGAL Point_2
   std::vector<Point_2> cgal_points;
@@ -60,23 +60,6 @@ int main()
   std::vector<Point_2> cgal_hull;
   CGAL::convex_hull_2(cgal_points.begin(), cgal_points.end(), std::back_inserter(cgal_hull));
 
-  std::vector<Point> ch_left = {points.begin(), points.begin() + points.size() / 2};
-  std::vector<Point> ch_right = {points.begin() + points.size() / 2, points.end()};
-
-  std::cout << "LEFT HULL" << std::endl;
-  for (int i = 0; i < ch_left.size(); i++)
-  {
-    std::cout << std::fixed << std::setprecision(6) << "(" << ch_left[i].x << ", " << ch_left[i].y
-              << ")\n";
-  }
-
-  std::cout << "RIGHT HULL" << std::endl;
-  for (int i = 0; i < ch_right.size(); i++)
-  {
-
-    std::cout << std::fixed << std::setprecision(6) << "(" << ch_right[i].x << ", " << ch_right[i].y
-              << ")\n";
-  }
   // Compute convex hull using your implementation
   std::vector<Point> my_hull = divide(points);
 
@@ -106,16 +89,16 @@ int main()
   else
   {
     std::cout << "Mismatch between your implementation and CGAL's result.\n";
-    std::cout << "CGAL Hull:\n";
-    for (const auto &p : converted_cgal_hull)
-    {
-      std::cout << std::fixed << std::setprecision(6) << "(" << p.x << ", " << p.y << ")\n";
-    }
-    std::cout << "Your Hull:\n";
-    for (const auto &p : my_hull)
-    {
-      std::cout << std::fixed << std::setprecision(6) << "(" << p.x << ", " << p.y << ")\n";
-    }
+    // std::cout << "CGAL Hull:\n";
+    //   for (const auto &p : converted_cgal_hull)
+    //   {
+    //     std::cout << std::fixed << std::setprecision(6) << "(" << p.x << ", " << p.y << ")\n";
+    //   }
+    //   std::cout << "Your Hull:\n";
+    //   for (const auto &p : my_hull)
+    //   {
+    //     std::cout << std::fixed << std::setprecision(6) << "(" << p.x << ", " << p.y << ")\n";
+    //   }
   }
 
   return 0;
