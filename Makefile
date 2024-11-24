@@ -1,7 +1,7 @@
 # Compiler and Flags
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -I./src -I./src/googletest/googletest/include
-LDFLAGS = -L./src/googletest/build/lib -lgtest -lgtest_main -pthread -lgmp
+LDFLAGS = -L./src/googletest/build/lib -lgtest -lgtest_main -pthread -lgmp -lglut -lGL -lGLU
 
 # Directories
 SRC_DIR = src
