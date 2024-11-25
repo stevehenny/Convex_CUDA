@@ -94,10 +94,10 @@ int main(int argc, char **argv)
 
   random_device rd;
   mt19937 gen(rd());
-  normal_distribution<> dist_x(500.0, 100.0);
-  normal_distribution<> dist_y(500.0, 100.0);
+  normal_distribution<> dist_x(500.0, 50.0);
+  normal_distribution<> dist_y(500.0, 50.0);
   // Generate random points
-  for (int i = 0; i < 1000000; ++i)
+  for (int i = 0; i < 15000000; ++i)
   {
     const double x = (dist_x(gen)); // Random x in [0.0, 100.0)
     const double y = (dist_y(gen)); // Random y in [0.0, 100.0)
@@ -131,9 +131,13 @@ int main(int argc, char **argv)
   initOpenGL();
   // Compute convex hull using your implementation
   cout << "D AND CONQUER" << endl;
-  global_hull = divide(global_points);
-  // global_hull = converted_cgal;
 
+  auto start = std::chrono::high_resolution_clock::now();
+  global_hull = divide(global_points);
+  auto end = std::chrono::high_resolution_clock::now();
+  double my_time = std::chrono::duration<double>(end - start).count();
+
+  cout << "SERIAL IMPLEMENTATION: " << my_time << endl;
   // Set OpenGL callback functions
   glutDisplayFunc(display);
   glutTimerFunc(0, timer, 0);
@@ -141,33 +145,12 @@ int main(int argc, char **argv)
   // Start the main loop
   glutMainLoop();
 
-  // // Convert CGAL hull back to custom Point type for comparison
-  // std::vector<Point> converted_cgal_hull;
-  // for (const auto &p : cgal_hull)
-  // {
-  //   converted_cgal_hull.push_back(to_custom_point(p));
-  // }
-  //
-  // // Sort the hulls for comparison
-  // // Sort the hulls for comparison
-  // std::sort(converted_cgal_hull.begin(), converted_cgal_hull.end(),
-  //           [](const Point &a, const Point &b) {
-  //             return (a.x < b.x) || (a.x == b.x && a.y < b.y);
-  //           }); // Added the missing parenthesis here
-  //
-  // std::sort(my_hull.begin(), my_hull.end(), [](const Point &a, const Point &b) {
-  //   return (a.x < b.x) || (a.x == b.x && a.y < b.y);
-  // });
-  //
-  // // Compare the two hulls
-  // if (converted_cgal_hull == my_hull)
-  // {
-  //   std::cout << "Your implementation matches CGAL's result!\n";
-  // }
-  // else
-  // {
-  //   std::cout << "Mismatch between your implementation and CGAL's result.\n";
-  // }
+  // Convert CGAL hull back to custom Point type for comparison
+  std::vector<Point> converted_cgal_hull;
+  for (const auto &p : cgal_hull)
+  {
+    converted_cgal_hull.push_back(to_custom_point(p));
+  }
 
   return 0;
 }

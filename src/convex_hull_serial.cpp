@@ -1,8 +1,5 @@
 #include "convex_hull_serial.h"
-#include <algorithm>
 #include <cmath>
-#include <iostream>
-#include <set>
 #include <utility>
 #include <vector>
 
@@ -11,8 +8,9 @@ using namespace std;
 double check_cross(const Point &a, const Point &b, const Point &c)
 {
   double cross_product = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-  const double epsilon = 1e-9;  // Threshold to handle precision issues
-  if (fabs(cross_product) < epsilon) return 0;
+  const double epsilon = 1e-9; // Threshold to handle precision issues
+  if (fabs(cross_product) < epsilon)
+    return 0;
   return cross_product;
 }
 
@@ -90,9 +88,10 @@ pair<int, int> compute_lower_tangent(const vector<Point> &left, const vector<Poi
     done = true;
     while (check_cross(left[left_ind], right[right_ind], left[((left_ind + 1) % l_length)]) > 0)
     {
-//      cout << "Check upper: "
-//           << check_cross(left[left_ind], right[right_ind], left[((left_ind + 1) % l_length)])
-//           << endl;
+      //      cout << "Check upper: "
+      //           << check_cross(left[left_ind], right[right_ind], left[((left_ind + 1) %
+      //           l_length)])
+      //           << endl;
       left_ind = (left_ind + 1) % l_length;
       done = false;
     }
@@ -117,7 +116,7 @@ vector<Point> merger(const std::vector<Point> &left, const std::vector<Point> &r
 
   vector<Point> hull;
   int ind = l_tangent.first;
-//  cout << ind << endl;
+  //  cout << ind << endl;
   hull.push_back(left[ind]);
   while (ind != u_tangent.first)
   {
@@ -140,20 +139,24 @@ vector<Point> divide(vector<Point> points)
   if (points.size() <= 3)
   {
     vector<Point> hull;
-    if(points.size() == 2){
+    if (points.size() == 2)
+    {
       return points;
     }
-    else{
+    else
+    {
 
       hull.push_back(points[0]);
-      if(check_cross(points[1], points[0], points[2]) < 0){
+      if (check_cross(points[1], points[0], points[2]) < 0)
+      {
         hull.push_back(points[1]);
         hull.push_back(points[2]);
-        }
-        else{
-          hull.push_back(points[2]);
-          hull.push_back(points[1]);
-        }
+      }
+      else
+      {
+        hull.push_back(points[2]);
+        hull.push_back(points[1]);
+      }
     }
     return hull;
   }

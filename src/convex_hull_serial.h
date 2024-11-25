@@ -1,3 +1,4 @@
+#pragma once
 #ifndef CONVEX_HULL_SERIAL
 #define CONVEX_HULL_SERIAL
 
