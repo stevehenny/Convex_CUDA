@@ -1,3 +1,4 @@
+#include "convex_hull_general.h"
 #include "convex_hull_serial.h"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Interval_nt.h>
@@ -97,7 +98,7 @@ int main(int argc, char **argv)
   normal_distribution<> dist_x(500.0, 50.0);
   normal_distribution<> dist_y(500.0, 50.0);
   // Generate random points
-  for (int i = 0; i < 15000000; ++i)
+  for (int i = 0; i < 1000000; ++i)
   {
     const double x = (dist_x(gen)); // Random x in [0.0, 100.0)
     const double y = (dist_y(gen)); // Random y in [0.0, 100.0)
@@ -138,6 +139,7 @@ int main(int argc, char **argv)
   double my_time = std::chrono::duration<double>(end - start).count();
 
   cout << "SERIAL IMPLEMENTATION: " << my_time << endl;
+  cout << "Size of Point: " << sizeof(Point) << endl;
   // Set OpenGL callback functions
   glutDisplayFunc(display);
   glutTimerFunc(0, timer, 0);

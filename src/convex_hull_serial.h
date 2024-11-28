@@ -2,6 +2,7 @@
 #ifndef CONVEX_HULL_SERIAL
 #define CONVEX_HULL_SERIAL
 
+#include "convex_hull_general.h"
 #include <cmath>
 #include <iostream>
 #include <utility>
@@ -9,24 +10,6 @@
 
 using namespace std;
 // Custom Point class
-struct Point
-{
-  double x, y;
-  Point(const double x = 0, const double y = 0) : x(x), y(y)
-  {
-  }
-
-  // Overload the equality operator
-  bool operator==(const Point &other) const
-  {
-    return x == other.x && y == other.y;
-  }
-
-  bool operator<(const Point &other) const
-  {
-    return (x < other.x) || (x == other.x && y < other.y);
-  }
-};
 // check slope values
 double check_cross(const Point &a, const Point &b, const Point &c);
 // finds upper tangent
