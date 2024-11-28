@@ -1,7 +1,8 @@
 #include "convex_hull_general.h"
+#include "convex_hull_serial.h"
 #include <GL/glut.h>
-#include <__clang_cuda_runtime_wrapper.h>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -9,8 +10,22 @@
 #include <ctime>
 #include <fenv.h>
 #include <iostream>
+#include <iterator>
 #include <random>
 #include <thread>
+
+#define htkCheck(stmt)                                                                             \
+  do                                                                                               \
+  {                                                                                                \
+    cudaError_t err = stmt;                                                                        \
+    if (err != cudaSuccess)                                                                        \
+    {                                                                                              \
+      std::cerr << "Failed to run stmt: " << #stmt << std::endl;                                   \
+      std::cerr << "Got CUDA error (" << err << "): " << cudaGetErrorString(err) << std::endl;     \
+      std::cerr << "File: " << __FILE__ << ", Line: " << __LINE__ << std::endl;                    \
+      exit(1);                                                                                     \
+    }                                                                                              \
+  } while (0)
 
 using namespace std;
 
@@ -64,144 +79,162 @@ void initOpenGL()
   gluOrtho2D(0.0, 1000.0, 0.0, 1000.0);
 }
 
-__global__ void findFarthestPoint(const Point *points, int num_points, Point lineStart,
-                                  Point lineEnd, int *farthestIdx, double *maxDist)
+// Helper function for atomicMax with double using casting and shared memory
+__device__ double atomicMaxDouble(double *address, double val)
 {
-  __shared__ double localMaxDist;
-  __shared__ int localFarthestIdx;
+  unsigned long long *address_as_ull = (unsigned long long *)address;
+  unsigned long long old = *address_as_ull, assumed;
 
-  int thread_id = threadIdx.x + blockIdx.x * blockDim.x;
-
-  // bound checking thread ids
-  if (thread_id >= num_points)
+  do
   {
+    assumed = old;
+    old = atomicCAS(address_as_ull, assumed,
+                    __double_as_longlong(max(val, __longlong_as_double(assumed))));
+  } while (assumed != old);
+
+  return __longlong_as_double(old);
+}
+
+// Kernel to find the farthest point
+__global__ void findFarthestPoint(Point *points, int num_points, Point lineStart, Point lineEnd,
+                                  int *farthestIdx, double *maxDist)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= num_points)
     return;
-  }
 
-  double dist = fabs((lineEnd.y - lineStart.y) * (points[thread_id].x - lineStart.x) -
-                     (lineEnd.x - lineStart.x) * (points[thread_id].y - lineStart.y));
+  double crossProduct = fabs((lineEnd.x - lineStart.x) * (lineStart.y - points[idx].y) -
+                             (lineStart.x - points[idx].x) * (lineEnd.y - lineStart.y));
+  atomicMaxDouble(maxDist, crossProduct);
 
-  // Initialize localMaxDist and localFarthestIdx for each block
-  if (threadIdx.x == 0)
+  if (crossProduct == *maxDist)
   {
-    localMaxDist = 0.0f;
-    localFarthestIdx = -1;
-  }
-  __syncthreads();
-
-  atomicMax(&localMaxDist, dist);
-  __syncthreads();
-
-  if (dist == localMaxDist)
-  {
-    atomicExch(&localFarthestIdx, thread_id);
-  }
-
-  if (threadIdx.x == 0 && localMaxDist > (*maxDist))
-  {
-    *maxDist = localMaxDist;
-    *farthestIdx = localFarthestIdx;
+    *farthestIdx = idx;
   }
 }
 
-__global__ void classifyPoints(const Point *points, int numPoints, Point lineStart, Point lineEnd,
+// Kernel to classify points as left or right of the line
+__global__ void classifyPoints(Point *points, int num_points, Point lineStart, Point lineEnd,
                                Point farthest, Point *leftSubset, Point *rightSubset,
                                int *leftCount, int *rightCount)
 {
-  int thread_id = threadIdx.x + blockIdx.x * blockDim.x;
-  if (thread_id >= numPoints)
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= num_points)
     return;
 
-  float cross = (lineEnd.x - lineStart.x) * (points[thread_id].y - lineStart.y) -
-                (lineEnd.y - lineStart.y) * (points[thread_id].x - lineStart.x);
+  double crossProduct = (lineEnd.x - lineStart.x) * (lineStart.y - points[idx].y) -
+                        (lineStart.x - points[idx].x) * (lineEnd.y - lineStart.y);
 
-  if (cross > 0)
+  if (crossProduct > 0)
   {
-    int idx = atomicAdd(leftCount, 1);
-    leftSubset[idx] = points[thread_id];
+    int pos = atomicAdd(leftCount, 1);
+    leftSubset[pos] = points[idx];
   }
-  else if (cross < 0)
+  else if (crossProduct < 0)
   {
-    int idx = atomicAdd(rightCount, 1);
-    rightSubset[idx] = points[thread_id];
+    int pos = atomicAdd(rightCount, 1);
+    rightSubset[pos] = points[idx];
   }
 }
 
-__global__ void divide_kernel(Point *points, int num_points, Point lineStart, Point lineEnd,
-                              Point *hull, int *hullCount)
+// Host function to manage recursion and kernel launches
+void divide_kernel_caller(Point *points, int num_points, Point lineStart, Point lineEnd,
+                          Point *hull, int *hullCount)
 {
   if (num_points == 0)
   {
     return;
   }
 
+  // Allocate device memory
+  Point *d_points, *leftSubset, *rightSubset;
+  int *d_leftCount, *d_rightCount, *d_farthestIdx;
+  double *d_maxDist;
+
+  htkCheck(cudaMalloc(&d_points, num_points * sizeof(Point)));
+  cout << "malloced d_points" << endl;
+
+  htkCheck(cudaMemcpy(d_points, points, num_points * sizeof(Point), cudaMemcpyHostToDevice));
+
+  htkCheck(cudaMalloc(&leftSubset, num_points * sizeof(Point)));
+  htkCheck(cudaMalloc(&rightSubset, num_points * sizeof(Point)));
+  htkCheck(cudaMalloc(&d_leftCount, sizeof(int)));
+  htkCheck(cudaMalloc(&d_rightCount, sizeof(int)));
+  htkCheck(cudaMalloc(&d_farthestIdx, sizeof(int)));
+  htkCheck(cudaMalloc(&d_maxDist, sizeof(double)));
+
+  // Initialize counts
+  htkCheck(cudaMemset(d_leftCount, 0, sizeof(int)));
+  htkCheck(cudaMemset(d_rightCount, 0, sizeof(int)));
+  htkCheck(cudaMemset(d_maxDist, 0, sizeof(double)));
+
+  cout << "Malloced everything" << endl;
+  // Kernel configuration
+  dim3 grid((num_points + 255) / 256);
+  dim3 block(256);
+
+  // Find the farthest point
+  findFarthestPoint<<<grid, block>>>(d_points, num_points, lineStart, lineEnd, d_farthestIdx,
+                                     d_maxDist);
+  cudaError_t err = cudaGetLastError();
+  if (err != cudaSuccess)
+  {
+    printf("CUDA error: %s\n", cudaGetErrorString(err));
+  }
+  htkCheck(cudaDeviceSynchronize());
+  // cout << "successfully synced" << endl;
+
+  // Retrieve results
   int farthestIdx;
-  double maxDist = 0.0f;
+  double maxDist;
+  htkCheck(cudaMemcpy(&farthestIdx, d_farthestIdx, sizeof(int), cudaMemcpyDeviceToHost));
+  htkCheck(cudaMemcpy(&maxDist, d_maxDist, sizeof(double), cudaMemcpyDeviceToHost));
 
-  dim3 grid(ceil(num_points / 256.0), 1, 1);
-  dim3 block(256, 1, 1);
-
-  findFarthestPoint<<<grid, block>>>(points, num_points, lineStart, lineEnd, &farthestIdx,
-                                     &maxDist);
-
-  cudaDeviceSynchronize();
+  if (maxDist == 0)
+  {
+    htkCheck(cudaFree(d_points));
+    htkCheck(cudaFree(leftSubset));
+    htkCheck(cudaFree(rightSubset));
+    htkCheck(cudaFree(d_leftCount));
+    htkCheck(cudaFree(d_rightCount));
+    htkCheck(cudaFree(d_farthestIdx));
+    htkCheck(cudaFree(d_maxDist));
+    return;
+  }
 
   Point farthest = points[farthestIdx];
+  hull[(*hullCount)++] = farthest;
 
-  // Add the farthest point to the hull
-  int idx = atomicAdd(hullCount, 1);
-  hull[idx] = farthest;
+  // Classify points
+  classifyPoints<<<grid, block>>>(d_points, num_points, lineStart, lineEnd, farthest, leftSubset,
+                                  rightSubset, d_leftCount, d_rightCount);
+  err = cudaGetLastError();
+  if (err != cudaSuccess)
+  {
+    printf("CUDA error: %s\n", cudaGetErrorString(err));
+  }
+  htkCheck(cudaDeviceSynchronize());
+  cout << "Successfully synced" << endl;
 
-  // Partition points into left and right subsets
-  Point *leftSubset, *rightSubset;
-  int leftCount = 0, rightCount = 0;
-  classifyPoints<<<grid, block>>>(points, num_points, lineStart, lineEnd, farthest, leftSubset,
-                                  rightSubset, &leftCount, &rightCount);
+  // Retrieve counts
+  int leftCount, rightCount;
+  htkCheck(cudaMemcpy(&leftCount, d_leftCount, sizeof(int), cudaMemcpyDeviceToHost));
+  htkCheck(cudaMemcpy(&rightCount, d_rightCount, sizeof(int), cudaMemcpyDeviceToHost));
 
-  // Recursive calls
+  // Recursively process left and right subsets
   if (leftCount > 0)
   {
-    divide_kernel<<<1, 1>>>(leftSubset, leftCount, lineStart, farthest, hull, hullCount);
+    divide_kernel_caller(rightSubset, rightCount, farthest, lineEnd, hull, hullCount);
   }
-  if (rightCount > 0)
-  {
-    divide_kernel<<<1, 1>>>(rightSubset, rightCount, farthest, lineEnd, hull, hullCount);
-  }
-}
 
-static void kernel_caller(const vector<Point> &points, vector<Point> &hull)
-{
-  int numPoints = points.size();
-  Point *d_points, *d_hull;
-  int *d_hull_count;
-
-  // copying over points to d_points
-  cudaMalloc(&d_points, numPoints * sizeof(Point));
-  cudaMemcpy(d_points, points.data(), numPoints * sizeof(Point), cudaMemcpyHostToDevice);
-
-  // Allocing space for d_hull and d_hull_count
-  cudaMalloc(&d_hull, numPoints * sizeof(Point));
-  cudaMalloc(&d_hull_count, sizeof(int));
-  cudaMemset(d_hull_count, 0, sizeof(int));
-
-  Point lineStart = points[0];
-  Point lineEnd = points.back();
-
-  divide_kernel<<<1, 1>>>(d_points, numPoints, lineStart, lineEnd, d_hull, d_hull_count);
-
-  // Make sure all resulting kernel calls on device are synchronized at this points
-  cudaDeviceSynchronize();
-
-  int hullCount;
-  cudaMemcpy(&hullCount, d_hull_count, sizeof(int), cudaMemcpyDeviceToHost);
-
-  // Resize hull vector properlly and copy d_hull back over to hull.data()
-  hull.resize(hullCount);
-  cudaMemcpy(hull.data(), d_hull, sizeof(Point) * hullCount, cudaMemcpyDeviceToHost);
-
-  cudaFree(d_points);
-  cudaFree(d_hull_count);
-  cudaFree(d_hull);
+  // Free device memory
+  htkCheck(cudaFree(d_points));
+  htkCheck(cudaFree(leftSubset));
+  htkCheck(cudaFree(rightSubset));
+  htkCheck(cudaFree(d_leftCount));
+  htkCheck(cudaFree(d_rightCount));
+  htkCheck(cudaFree(d_farthestIdx));
+  htkCheck(cudaFree(d_maxDist));
 }
 
 int main(int argc, char *argv[])
@@ -228,11 +261,14 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  vector<Point> hull;
-  vector<Point> points = generate_random_points(config.num_points);
+  cout << "case_id: " << case_id << endl;
 
-  // sort points by x value, y value is tie breaker
-  sort(points.begin(), points.end(),
+  global_points = generate_random_points(config.num_points);
+
+  cout << "Generated points" << endl;
+
+  // Sort points by x value, y value is tie breaker
+  sort(global_points.begin(), global_points.end(),
        [](const Point &a, const Point &b) { return (a.x < b.x) || (a.x == b.x && a.y < b.y); });
 
   // Initialize OpenGL
@@ -242,8 +278,51 @@ int main(int argc, char *argv[])
   glutCreateWindow("Convex Hull Visualization");
 
   initOpenGL();
+  cout << "Window initialized" << endl;
+
+  vector<Point> serial_hull, parallel_hull;
+  std::chrono::time_point<std::chrono::high_resolution_clock> serial_start, serial_end,
+      parallel_start, parallel_end;
+  double serial_time, parallel_time;
+  int hullCount;
+
+  cout << "Variables needed for case statements declared" << endl;
 
   // NOTE: WHERE I LEFT OFF: Implement the switch statment logic for the command
-
+  switch (case_id)
+  {
+  case 0: // both case
+    serial_start = std::chrono::high_resolution_clock::now();
+    serial_hull = divide(global_points);
+    serial_end = std::chrono::high_resolution_clock::now();
+    serial_time = std::chrono::duration<double>(serial_end - serial_start).count();
+    break;
+  case 1: // serial case
+    serial_start = std::chrono::high_resolution_clock::now();
+    serial_hull = divide(global_points);
+    serial_end = std::chrono::high_resolution_clock::now();
+    serial_time = std::chrono::duration<double>(serial_end - serial_start).count();
+    global_hull = serial_hull;
+    break;
+  case 2: // parallel case
+    hullCount = 0;
+    parallel_start = std::chrono::high_resolution_clock::now();
+    parallel_hull.resize(global_points.size());
+    cout << "hull size resized properlly" << endl;
+    divide_kernel_caller(global_points.data(), global_points.size(), global_points[0],
+                         global_points.back(), parallel_hull.data(), &hullCount);
+    cout << "divided kernel caller returned" << endl;
+    parallel_end = std::chrono::high_resolution_clock::now();
+    parallel_time = std::chrono::duration<double>(parallel_end - parallel_start).count();
+    global_hull = parallel_hull;
+    break;
+  default:
+    break;
+  }
+  glutDisplayFunc(display);
+  glutTimerFunc(0, timer, 0);
+  cout << "Drawing" << endl;
+  // Start the main loop
+  glutMainLoop();
   return 0;
 }
