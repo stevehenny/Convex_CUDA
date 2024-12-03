@@ -41,6 +41,12 @@ struct Point
   }
 };
 
+struct DataBlock
+{
+  int index;
+  double distance;
+};
+
 int parse_args(int argc, char *argv[], Config *config);
 vector<Point> generate_random_points(int n);
 
