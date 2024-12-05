@@ -1,59 +1,32 @@
-# Compiler and Flags
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -I./src -I./src/googletest/googletest/include
-LDFLAGS = -L./src/googletest/build/lib -lgtest -lgtest_main -pthread -lgmp -lglut -lGL -lGLU
+# Compiler and flags
+NVCC = nvcc
+CXXFLAGS = -Isrc/ -lstdc++ -std=c++17 -Xcompiler=-Wno-deprecated -g -G --extended-lambda
 
-# Directories
-SRC_DIR = src
-TEST_DIR = src/tests
-BUILD_DIR = build
+# Source files
+SRC_FILES = src/main.cu src/convex_hull_general.cpp src/convex_hull_serial.cpp src/convex_hull_cuda.cu
 
-# Files and Targets
-MAIN_TARGET = build/main
-MAIN_SOURCES = $(SRC_DIR)/main.cpp $(SRC_DIR)/convex_hull_serial.cpp
-TARGET = $(BUILD_DIR)/convex_hull_serial
-TEST_TARGET = $(BUILD_DIR)/serial_tests
-SOURCES = $(SRC_DIR)/convex_hull_serial.cpp
-HEADERS = $(SRC_DIR)/convex_hull_serial.h
-TEST_SOURCES = $(TEST_DIR)/serial_tests.cpp
-OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
-MAIN_OBJECTS = $(MAIN_SOURCES:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
-TEST_OBJECTS = $(TEST_SOURCES:$(TEST_DIR)/%.cpp=$(BUILD_DIR)/%.o)
+# Output directory and executable
+OUTPUT_DIR = bin
+VISUAL_OUTPUT = $(OUTPUT_DIR)/visual.o
+NO_VISUAL_OUTPUT = $(OUTPUT_DIR)/no_visual.o
 
-# Create build directory if it doesn't exist
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
+# Targets
+all: visual no_visual
 
-# Build main convex hull program
-$(TARGET): $(BUILD_DIR) $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $@
+# 'visual' target will set USE_OPENGL=1 and include OpenGL-specific flags
+visual:
+	@mkdir -p $(OUTPUT_DIR)        # Create the bin directory if it doesn't exist
+	$(eval VISUAL_DEFINES = -DUSE_OPENGL) # Define USE_OPENGL for conditional compilation
+	$(eval VISUAL_CXXFLAGS = $(CXXFLAGS) -lglut -lGL -lGLU) # Add OpenGL libraries for visual
+	$(NVCC) $(SRC_FILES) $(VISUAL_CXXFLAGS) $(VISUAL_DEFINES) -o $(VISUAL_OUTPUT)
 
-# Build the main program
-$(MAIN_TARGET): $(BUILD_DIR) $(MAIN_OBJECTS)
-	$(CXX) $(MAIN_OBJECTS) $(LDFLAGS) -o $@
+# 'no_visual' target will set USE_OPENGL=0 and disable OpenGL-specific flags
+no_visual:
+	@mkdir -p $(OUTPUT_DIR)        # Create the bin directory if it doesn't exist
+	$(eval NO_VISUAL_DEFINES = -DNO_OPENGL) # Define NO_OPENGL for conditional compilation
+	$(eval NO_VISUAL_CXXFLAGS = $(CXXFLAGS)) # No OpenGL libraries for no_visual
+	$(NVCC) $(SRC_FILES) $(NO_VISUAL_CXXFLAGS) $(NO_VISUAL_DEFINES) -o $(NO_VISUAL_OUTPUT)
 
-# Build unit tests
-$(TEST_TARGET): $(BUILD_DIR) $(OBJECTS) $(TEST_OBJECTS)
-	$(CXX) $(CXXFLAGS) $(OBJECTS) $(TEST_OBJECTS) -o $@ $(LDFLAGS)
-
-# Object files
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-$(BUILD_DIR)/%.o: $(TEST_DIR)/%.cpp $(HEADERS)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Run tests
-test: $(TEST_TARGET)
-	./$(TEST_TARGET)
-
-#build main
-main: $(MAIN_TARGET)
-	./$(MAIN_TARGET)
-
-# Clean build artifacts
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(OUTPUT_DIR)
 
-# Phony targets
-.PHONY: all test clean

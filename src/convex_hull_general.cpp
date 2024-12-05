@@ -66,7 +66,7 @@ vector<Point> generate_random_points(int n)
   {
     const double x = (dist_x(gen));
     const double y = (dist_y(gen));
-    points.push_back(Point(x, y));
+    points.push_back(Point{x, y});
   }
 
   return points;
