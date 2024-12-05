@@ -88,10 +88,6 @@ pair<int, int> compute_lower_tangent(const vector<Point> &left, const vector<Poi
     done = true;
     while (check_cross(left[left_ind], right[right_ind], left[((left_ind + 1) % l_length)]) > 0)
     {
-      //      cout << "Check upper: "
-      //           << check_cross(left[left_ind], right[right_ind], left[((left_ind + 1) %
-      //           l_length)])
-      //           << endl;
       left_ind = (left_ind + 1) % l_length;
       done = false;
     }
@@ -116,7 +112,6 @@ vector<Point> merger(const std::vector<Point> &left, const std::vector<Point> &r
 
   vector<Point> hull;
   int ind = l_tangent.first;
-  //  cout << ind << endl;
   hull.push_back(left[ind]);
   while (ind != u_tangent.first)
   {

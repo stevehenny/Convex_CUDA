@@ -22,22 +22,6 @@ struct Config
   int num_points;
   char *command;
 };
-// struct Point
-// {
-//   unsigned idx;
-//   double x, y;
-//
-//   // Overload the equality operator
-//   bool operator==(const Point &other) const
-//   {
-//     return x == other.x && y == other.y && idx == other.idx;
-//   }
-//
-//   bool operator<(const Point &other) const
-//   {
-//     return (x < other.x) || (x == other.x && y < other.y);
-//   }
-// };
 
 int parse_args(int argc, char *argv[], Config *config);
 vector<Point> generate_random_points(int n);

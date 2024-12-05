@@ -5,15 +5,10 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <hash_set>
-#include <random>
-#include <thread>
 #include <unordered_set>
 #include <vector>
 
 using namespace std;
-
-// vector<Point> global_points;
-// vector<Point> global_hull;
 
 __host__ __device__ double Distance(Point p1, Point p2, Point p)
 {
@@ -181,43 +176,6 @@ std::unordered_set<Point, Point::Hash> QuickHull(std::vector<Point> &points)
   return result;
 }
 
-// // OpenGL Visualization Functions
-// void display()
-// {
-//   glClear(GL_COLOR_BUFFER_BIT);
-//   glColor3f(1.0, 1.0, 1.0);
-//   glBegin(GL_POINTS);
-//   for (const auto &point : global_points)
-//   {
-//     glVertex2f(point.x, point.y);
-//   }
-//   glEnd();
-//
-//   glColor3f(1.0, 0.0, 0.0);
-//   glBegin(GL_LINE_LOOP);
-//   for (const auto &point : global_hull)
-//   {
-//     glVertex2f(point.x, point.y);
-//   }
-//   glEnd();
-//   glutSwapBuffers();
-// }
-//
-// void timer(int)
-// {
-//   glutPostRedisplay();
-//   this_thread::sleep_for(chrono::milliseconds(100));
-//   glutTimerFunc(100, timer, 0);
-// }
-//
-// void initOpenGL()
-// {
-//   glClearColor(0.0, 0.0, 0.0, 1.0);
-//   glMatrixMode(GL_PROJECTION);
-//   glLoadIdentity();
-//   gluOrtho2D(0.0, 1000.0, 0.0, 1000.0);
-// }
-//
 // Function to compute the cross product of vectors (p0p1 and p0p2)
 // Positive result indicates counter-clockwise turn, negative indicates clockwise turn
 double crossProduct(const Point &p0, const Point &p1, const Point &p2)
@@ -253,44 +211,3 @@ bool compareClockwise(const Point &p1, const Point &p2, const Point &reference)
   }
   return cross > 0; // We want a clockwise order
 }
-
-// int main(int argc, char *argv[])
-// {
-//   // Create a vector of points
-//
-//   std::vector<Point> points = generate_points(80000000);
-//   printf("here\n");
-//   clock_t start = clock();
-//   std::unordered_set hull = QuickHull(points);
-//   clock_t end = clock();
-//   double duration = static_cast<double>(end - start) / CLOCKS_PER_SEC;
-//   std::cout << "Time taken: " << duration << " seconds" << std::endl;
-//   // Print the points in the convex hull
-//   std::cout << "Convex Hull Points:" << std::endl;
-//   for (const auto &point : hull)
-//   {
-//     std::cout << "(" << point.X << ", " << point.y << ")" << std::endl;
-//   }
-//   global_points = points;
-//
-//   for (auto &point : hull)
-//   {
-//     global_hull.push_back(point);
-//   }
-//   // Find the leftmost point to use as a reference
-//   Point reference = findLeftmostPoint(global_hull);
-//   // Sort the points in clockwise order relative to the reference point
-//   std::sort(global_hull.begin(), global_hull.end(),
-//             [&](const Point &p1, const Point &p2) { return compareClockwise(p1, p2, reference);
-//             });
-//
-//   glutInit(&argc, argv);
-//   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-//   glutInitWindowSize(800, 800);
-//   glutCreateWindow("Convex Hull Visualization");
-//   initOpenGL();
-//   glutDisplayFunc(display);
-//   glutTimerFunc(0, timer, 0);
-//   glutMainLoop();
-//   return 0;
-// }
