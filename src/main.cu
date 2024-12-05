@@ -142,6 +142,11 @@ static void run_parallel_config(vector<Point> &host_points)
   cout << "Parallel algorithm execution time: " << parallel_time << "ms" << endl;
   cout << "Parallel total execution time: " << parallel_time + parallel_sort_time << "ms" << endl;
   cout << "Parallel hull size: " << global_hull.size() << endl;
+  cout << "Parallel Hull Points" << endl;
+  for (auto &point : global_hull)
+  {
+    cout << "(" << point.x << ", " << point.y << ")" << endl;
+  }
 }
 
 static void run_serial_config(vector<Point> &host_points)
@@ -163,6 +168,12 @@ static void run_serial_config(vector<Point> &host_points)
   cout << "Serial algorithm execution time: " << serial_time << "ms" << endl;
   cout << "Serial total execution time: " << serial_time + serial_sort_time << "ms" << endl;
   cout << "Serial hull size: " << global_hull.size() << endl;
+  cout << "Serial Hull Points" << endl;
+  sort_points_clockwise(global_hull);
+  for (auto &point : global_hull)
+  {
+    cout << "(" << point.x << ", " << point.y << ")" << endl;
+  }
 }
 
 int main(int argc, char *argv[])
