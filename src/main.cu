@@ -3,6 +3,7 @@
 #include "convex_hull_serial.h"
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <iostream>
@@ -131,7 +132,7 @@ static void run_parallel_config(vector<Point> &host_points)
   auto parallel_end = std::chrono::high_resolution_clock::now();
   auto parallel_time =
       std::chrono::duration_cast<chrono::milliseconds>(parallel_end - parallel_start).count();
-
+  global_hull.clear();
   for (auto &point : hull)
   {
     global_hull.push_back(point);
@@ -159,6 +160,7 @@ static void run_serial_config(vector<Point> &host_points)
   auto serial_sort_time =
       std::chrono::duration_cast<chrono::milliseconds>(serial_sort_end - serial_sort_start).count();
   auto serial_start = std::chrono::high_resolution_clock::now();
+  global_hull.clear();
   global_hull = divide(host_points);
   auto serial_end = std::chrono::high_resolution_clock::now();
   auto serial_time =
@@ -178,48 +180,58 @@ static void run_serial_config(vector<Point> &host_points)
 
 int main(int argc, char *argv[])
 {
-  Config config;
-  int exit_status = parse_args(argc, argv, &config);
-  if (exit_status != 0)
+  Config config = {0, nullptr}; // Initialize Config to avoid garbage values
+
+  if (parse_args(argc, argv, &config) != 0)
   {
-    return 1;
+    return 1; // No memory to clean yet
   }
 
-  vector<Point> host_points = generate_random_points(config.num_points);
+  vector<Point> host_points;
+  try
+  {
+    host_points = generate_random_points(config.num_points);
 
-  if (strcmp(config.command, "parallel") == 0)
-  {
-    run_parallel_config(host_points);
-  }
-  else if (strcmp(config.command, "serial") == 0)
-  {
-    run_serial_config(host_points);
-  }
+    if (strcmp(config.command, "parallel") == 0)
+    {
+      run_parallel_config(host_points);
+    }
+    else if (strcmp(config.command, "serial") == 0)
+    {
+      run_serial_config(host_points);
+    }
 #ifdef NO_OPENGL
-  else if (strcmp(config.command, "both") == 0)
-  {
-    run_parallel_config(host_points);
-    cout << endl;
-    run_serial_config(host_points);
-  }
+    else if (strcmp(config.command, "both") == 0)
+    {
+      run_parallel_config(host_points);
+      cout << endl;
+      run_serial_config(host_points);
+    }
 #endif
-  else
-  {
-    cerr << "Invalid command" << endl;
-    return 1;
-  }
+    else
+    {
+      cerr << "Invalid command" << endl;
+      return 1;
+    }
 
 #ifdef USE_OPENGL
-  global_points = host_points;
-  glutInit(&argc, argv);
-  glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-  glutInitWindowSize(800, 800);
-  glutCreateWindow("Convex Hull Visualization");
-  initOpenGL();
-  glutDisplayFunc(display);
-  glutTimerFunc(0, timer, 0);
-  glutMainLoop();
+    global_points = host_points;
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+    glutInitWindowSize(800, 800);
+    glutCreateWindow("Convex Hull Visualization");
+    initOpenGL();
+    glutDisplayFunc(display);
+    glutTimerFunc(0, timer, 0);
+    glutMainLoop();
 #endif
+  }
+  catch (const std::exception &e)
+  {
+    cerr << "Error: " << e.what() << endl;
+    return 1;
+  }
 
+  // Cleanup
   return 0;
 }

@@ -75,7 +75,7 @@ __global__ void FindMaxIndexKernel(Point *input, int length, int side, Point a, 
   {
     FindMaxIndexGPU(a, b, input[start_index + i], side, start_index + i, &index, &distance);
   }
-  __syncthreads();
+  // __syncthreads();
 
   s_distance[threadIdx.x] = distance;
   s_index[threadIdx.x] = index;
@@ -173,6 +173,7 @@ std::unordered_set<Point, Point::Hash> QuickHull(std::vector<Point> &points)
   FindHull(points, left, right, 1, result, d_points);
   FindHull(points, left, right, -1, result, d_points);
 
+  cudaFree(d_points);
   return result;
 }
 
