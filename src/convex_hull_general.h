@@ -25,5 +25,5 @@ struct Config
 
 int parse_args(int argc, char *argv[], Config *config);
 vector<Point> generate_random_points(int n);
-
+void scramble_points(vector<Point> &points);
 #endif // CONVEX_HULL_GENERAL

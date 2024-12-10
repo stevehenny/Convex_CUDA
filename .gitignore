@@ -1,2 +1,5 @@
 build/
 bin/
+.venv/
+quickhull_output.log
+quickhull_output_optimized.log

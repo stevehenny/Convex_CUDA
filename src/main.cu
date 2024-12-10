@@ -17,6 +17,7 @@
 #endif
 
 #define BLOCK_SIZE 1024
+#define SERIAL_SORT_MAX 100000000
 #define THRESHOLD (BLOCK_SIZE * 32)
 #define htkCheck(stmt)                                                                             \
   do                                                                                               \
@@ -101,25 +102,35 @@ static void run_parallel_config(vector<Point> &host_points)
   int N = host_points.size();
 
   auto parallel_sort_start = std::chrono::high_resolution_clock::now();
-  // Sort using cuda wrapper library thrust vectors
-  thrust::device_vector<Point> d_points(host_points);
-  thrust::sort(d_points.begin(), d_points.end(),
-               [] __host__ __device__(const Point &a, const Point &b) {
-                 if (a.x < b.x)
-                 {
-                   return true;
-                 }
-                 else if (a.x > b.x)
-                 {
-                   return false;
-                 }
-                 else
-                 {
-                   return a.y < b.y;
-                 }
-               });
 
-  thrust::copy(d_points.begin(), d_points.end(), host_points.begin());
+  if (N < SERIAL_SORT_MAX)
+  {
+    sort(host_points.begin(), host_points.end(),
+         [](const Point &a, const Point &b) { return (a.x < b.x) || (a.x == b.x && a.y < b.y); });
+  }
+
+  else
+  {
+    // Sort using cuda wrapper library thrust vectors
+    thrust::device_vector<Point> d_points(host_points);
+    thrust::sort(d_points.begin(), d_points.end(),
+                 [] __host__ __device__(const Point &a, const Point &b) {
+                   if (a.x < b.x)
+                   {
+                     return true;
+                   }
+                   else if (a.x > b.x)
+                   {
+                     return false;
+                   }
+                   else
+                   {
+                     return a.y < b.y;
+                   }
+                 });
+
+    thrust::copy(d_points.begin(), d_points.end(), host_points.begin());
+  }
   auto parallel_sort_end = std::chrono::high_resolution_clock::now();
   auto parallel_sort_time =
       std::chrono::duration_cast<chrono::milliseconds>(parallel_sort_end - parallel_sort_start)
@@ -205,6 +216,7 @@ int main(int argc, char *argv[])
     {
       run_parallel_config(host_points);
       cout << endl;
+      scramble_points(host_points);
       run_serial_config(host_points);
     }
 #endif

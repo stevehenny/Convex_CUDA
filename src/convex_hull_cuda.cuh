@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
+using namespace std;
 // Structure representing a 2D point
 struct Point
 {
@@ -33,6 +34,18 @@ struct Point
       return xHash ^ (yHash << 1);
     }
   };
+
+  __host__ __device__ bool operator<(const Point &other) const
+  {
+    if (x == other.x)
+      return y < other.y;
+    return x < other.x;
+  }
+
+  __host__ __device__ bool operator>(const Point &other) const
+  {
+    return !(*this < other) && !(*this == other);
+  }
 
   __host__ __device__ bool operator==(const Point &other) const
   {
@@ -87,4 +100,5 @@ Point findLeftmostPoint(const std::vector<Point> &points);
 
 // Comparator function to sort points in clockwise order around the reference point
 bool compareClockwise(const Point &p1, const Point &p2, const Point &reference);
+
 #endif // QUICKHULL_CUH

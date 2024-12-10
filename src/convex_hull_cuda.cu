@@ -8,6 +8,8 @@
 #include <unordered_set>
 #include <vector>
 
+#define BLOCK_DIM 256
+
 using namespace std;
 
 __host__ __device__ double Distance(Point p1, Point p2, Point p)
@@ -60,8 +62,8 @@ __global__ void FindMaxIndexKernel(Point *input, int length, int side, Point a, 
                                    DataBlock *output)
 {
   // Define a shared memory buffer to hold the results of the thread-level computation
-  __shared__ double s_distance[16];
-  __shared__ int s_index[16];
+  __shared__ double s_distance[BLOCK_DIM];
+  __shared__ int s_index[BLOCK_DIM];
 
   // Compute the start index for this block
   int start_index = blockIdx.x * blockDim.x;
@@ -75,7 +77,7 @@ __global__ void FindMaxIndexKernel(Point *input, int length, int side, Point a, 
   {
     FindMaxIndexGPU(a, b, input[start_index + i], side, start_index + i, &index, &distance);
   }
-  // __syncthreads();
+  __syncthreads();
 
   s_distance[threadIdx.x] = distance;
   s_index[threadIdx.x] = index;
@@ -107,7 +109,7 @@ void FindHull(std::vector<Point> &points, Point p1, Point p2, int side,
               std::unordered_set<Point, Point::Hash> &result, Point *d_points)
 {
   // Calculate grid and block dimensions
-  dim3 blockDim(16);                                           // 16 threads per block
+  dim3 blockDim(BLOCK_DIM);                                    // 16 threads per block
   dim3 gridDim((points.size() + blockDim.x - 1) / blockDim.x); // Adjust grid size
 
   // Allocate memory for DataBlock on device

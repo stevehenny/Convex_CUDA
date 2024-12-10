@@ -1,4 +1,5 @@
 #include "convex_hull_general.h"
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <random>
@@ -70,4 +71,14 @@ vector<Point> generate_random_points(int n)
   }
 
   return points;
+}
+
+void scramble_points(vector<Point> &points)
+{
+  // Create a random device and generator
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  // Shuffle the vector using the random generator
+  std::shuffle(points.begin(), points.end(), gen);
 }
