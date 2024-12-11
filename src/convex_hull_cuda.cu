@@ -17,6 +17,7 @@ __host__ __device__ double Distance(Point p1, Point p2, Point p)
   return std::abs((p.y - p1.y) * (p2.x - p1.x) - (p2.y - p1.y) * (p.x - p1.x));
 }
 
+// Find which side point p is on in comparison to line segment p1->p2
 __host__ __device__ int Side(Point p1, Point p2, Point p)
 {
   auto side = (p.y - p1.y) * (p2.x - p1.x) - (p2.y - p1.y) * (p.x - p1.x);
@@ -27,6 +28,7 @@ __host__ __device__ int Side(Point p1, Point p2, Point p)
   return 0;
 }
 
+// Finds and updates local max distances and indexes
 __device__ void FindMaxIndexGPU(Point a, Point b, Point candidate, int side, int candidateIndex,
                                 int *maxIndex, double *maxDistance)
 {
@@ -43,6 +45,7 @@ __device__ void FindMaxIndexGPU(Point a, Point b, Point candidate, int side, int
   }
 }
 
+// Finds the max index but is a host function, only to be called as a final reduction
 __host__ void FindMaxIndexCPU(Point a, Point b, Point candidate, int side, int candidateIndex,
                               int *maxIndex, double *maxDistance)
 {
@@ -57,7 +60,7 @@ __host__ void FindMaxIndexCPU(Point a, Point b, Point candidate, int side, int c
     *maxDistance = candidateDistance;
   }
 }
-
+// Kernel that finds the max index and does most of the heavy lifting
 __global__ void FindMaxIndexKernel(Point *input, int length, int side, Point a, Point b,
                                    DataBlock *output)
 {
@@ -105,6 +108,7 @@ __global__ void FindMaxIndexKernel(Point *input, int length, int side, Point a, 
   }
 }
 
+// Recursively called divide and conquer function
 void FindHull(std::vector<Point> &points, Point p1, Point p2, int side,
               std::unordered_set<Point, Point::Hash> &result, Point *d_points)
 {
@@ -154,6 +158,9 @@ void FindHull(std::vector<Point> &points, Point p1, Point p2, int side,
   FindHull(points, points[maxIndex], p1, -newSide, result, d_points);
   FindHull(points, points[maxIndex], p2, newSide, result, d_points);
 }
+
+// QuickHull algorithm. Utilizes hashing for quicker access in a unordered_set
+// Also calls FindHull on left hull and right hull, which are then recursively called
 std::unordered_set<Point, Point::Hash> QuickHull(std::vector<Point> &points)
 {
 

@@ -9,7 +9,7 @@
   "Options:\n"                                                                                     \
   "  --help\n"                                                                                     \
   "  --num_points POINTS, -n POINTS (Default is 100000)\n"                                         \
-  "  --command COMMAND, -c COMMAND (Default is both)\n"                                            \
+  "  --command COMMAND, -c COMMAND (Default is serial)\n"                                          \
   "                   Commands: both, serial, parallel"
 
 #include "convex_hull_cuda.cuh"
@@ -17,6 +17,7 @@
 #include <vector>
 using namespace std;
 
+// Config passed into parse_args
 struct Config
 {
   int num_points;

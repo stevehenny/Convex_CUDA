@@ -5,6 +5,7 @@
 
 using namespace std;
 
+// Check the polygon cross value (slope) between ac and bc
 double check_cross(const Point &a, const Point &b, const Point &c)
 {
   double cross_product = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
@@ -14,6 +15,7 @@ double check_cross(const Point &a, const Point &b, const Point &c)
   return cross_product;
 }
 
+// Finds the upper tangent and returns the indexes of the two Points
 pair<int, int> compute_upper_tangent(const vector<Point> &left, const vector<Point> &right)
 {
   int l_length = left.size();
@@ -22,6 +24,8 @@ pair<int, int> compute_upper_tangent(const vector<Point> &left, const vector<Poi
   int left_ind = 0;
   int right_ind = 0;
 
+  // The next two for loops find the rightmost point of the leftmost
+  // point of the right hull, and the rightmost point of the left hull
   for (int i = 1; i < l_length; i++)
   {
     if (left[i].x > left[left_ind].x)
@@ -39,6 +43,8 @@ pair<int, int> compute_upper_tangent(const vector<Point> &left, const vector<Poi
   }
 
   bool done = false;
+  // while any updates happen, rotate counterclockwise on the left hull for a more
+  // negative slope, and clockwise on the right hull for a more positive slope
   while (!done)
   {
     done = true;
@@ -58,6 +64,7 @@ pair<int, int> compute_upper_tangent(const vector<Point> &left, const vector<Poi
   return make_pair(left_ind, right_ind);
 }
 
+// Finds the lower tangent and returns the indexes of the two Points
 pair<int, int> compute_lower_tangent(const vector<Point> &left, const vector<Point> &right)
 {
   int l_length = left.size();
@@ -66,6 +73,8 @@ pair<int, int> compute_lower_tangent(const vector<Point> &left, const vector<Poi
   int left_ind = 0;
   int right_ind = 0;
 
+  // The next two for loops find the rightmost point of the leftmost
+  // point of the right hull, and the rightmost point of the left hull
   for (int i = 1; i < l_length; i++)
   {
     if (left[i].x > left[left_ind].x)
@@ -83,6 +92,9 @@ pair<int, int> compute_lower_tangent(const vector<Point> &left, const vector<Poi
   }
 
   bool done = false;
+
+  // while any updates happen, rotate counterclockwise on the righ hull for a more
+  // negative slope, and clockwise on the left hull for a more positive slope
   while (!done)
   {
     done = true;
@@ -102,6 +114,7 @@ pair<int, int> compute_lower_tangent(const vector<Point> &left, const vector<Poi
   return make_pair(left_ind, right_ind);
 }
 
+// merge two hulls together
 vector<Point> merger(const std::vector<Point> &left, const std::vector<Point> &right)
 {
   int l_length = left.size();
@@ -113,6 +126,8 @@ vector<Point> merger(const std::vector<Point> &left, const std::vector<Point> &r
   vector<Point> hull;
   int ind = l_tangent.first;
   hull.push_back(left[ind]);
+
+  // rotate from lower tangent left hull to upper tangent right hull
   while (ind != u_tangent.first)
   {
     ind = (ind + 1) % l_length;
@@ -121,6 +136,8 @@ vector<Point> merger(const std::vector<Point> &left, const std::vector<Point> &r
 
   ind = u_tangent.second;
   hull.push_back(right[ind]);
+
+  // rotate from lower tangent to upper tangent of right hull to lower tangent of right hull
   while (ind != l_tangent.second)
   {
     ind = (ind + 1) % r_length;
@@ -129,6 +146,8 @@ vector<Point> merger(const std::vector<Point> &left, const std::vector<Point> &r
   return hull;
 }
 
+// top level function of serial implementation. recursively calls divide and calls merger once hulls
+// are of size 2 and 3 points. Organizes points in a clockwise fashion
 vector<Point> divide(vector<Point> points)
 {
   if (points.size() <= 3)

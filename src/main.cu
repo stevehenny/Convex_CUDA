@@ -76,6 +76,7 @@ void initOpenGL()
 }
 #endif
 
+// function that sorts points clockwise for openGL Visualization
 void sort_points_clockwise(std::vector<Point> &points)
 {
   // Compute the centroid
@@ -96,6 +97,7 @@ void sort_points_clockwise(std::vector<Point> &points)
   });
 }
 
+// Run parallel config argument.
 static void run_parallel_config(vector<Point> &host_points)
 {
 
@@ -103,6 +105,8 @@ static void run_parallel_config(vector<Point> &host_points)
 
   auto parallel_sort_start = std::chrono::high_resolution_clock::now();
 
+  // if it does not make sense to send points to GPU for sort due to small size,
+  // sort them on host serially
   if (N < SERIAL_SORT_MAX)
   {
     sort(host_points.begin(), host_points.end(),
@@ -138,11 +142,13 @@ static void run_parallel_config(vector<Point> &host_points)
 
   // Exectuion time
   auto parallel_start = std::chrono::high_resolution_clock::now();
-  // compute
   std::unordered_set hull = QuickHull(host_points);
   auto parallel_end = std::chrono::high_resolution_clock::now();
+
   auto parallel_time =
       std::chrono::duration_cast<chrono::milliseconds>(parallel_end - parallel_start).count();
+
+  // Clear the hull before appending answer to global hull
   global_hull.clear();
   for (auto &point : hull)
   {
@@ -164,18 +170,22 @@ static void run_parallel_config(vector<Point> &host_points)
 static void run_serial_config(vector<Point> &host_points)
 {
 
+  // sort and log time
   auto serial_sort_start = std::chrono::high_resolution_clock::now();
   sort(host_points.begin(), host_points.end(),
        [](const Point &a, const Point &b) { return (a.x < b.x) || (a.x == b.x && a.y < b.y); });
   auto serial_sort_end = std::chrono::high_resolution_clock::now();
   auto serial_sort_time =
       std::chrono::duration_cast<chrono::milliseconds>(serial_sort_end - serial_sort_start).count();
-  auto serial_start = std::chrono::high_resolution_clock::now();
+
+  // execute and log time
   global_hull.clear();
+  auto serial_start = std::chrono::high_resolution_clock::now();
   global_hull = divide(host_points);
   auto serial_end = std::chrono::high_resolution_clock::now();
   auto serial_time =
       std::chrono::duration_cast<chrono::milliseconds>(serial_end - serial_start).count();
+
   cout << "SERIAL INFO" << endl;
   cout << "Serial sort time: " << serial_sort_time << "ms" << endl;
   cout << "Serial algorithm execution time: " << serial_time << "ms" << endl;

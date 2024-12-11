@@ -7,6 +7,7 @@
 #include <string.h>
 using namespace std;
 
+// Parses runtime arguments
 int parse_args(int argc, char **argv, Config *config)
 {
 
@@ -54,6 +55,7 @@ int parse_args(int argc, char **argv, Config *config)
   return 0;
 }
 
+// Generates n number of random Points
 vector<Point> generate_random_points(int n)
 {
   vector<Point> points;
@@ -73,6 +75,8 @@ vector<Point> generate_random_points(int n)
   return points;
 }
 
+// Scrambles points so that an accurate time can be gathered about
+// sorting points
 void scramble_points(vector<Point> &points)
 {
   // Create a random device and generator
